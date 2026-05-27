@@ -104,6 +104,7 @@ def search(media_type, query, page):
                 "media_type": media_type,
                 "title": get_title(media),
                 "image": get_image_url(media["poster_path"]),
+                "release_year": get_release_year(media),
             }
             for media in response["results"]
         ]
@@ -525,6 +526,20 @@ def get_title(response):
         return response["title"]
     except KeyError:
         return response["name"]
+
+
+def get_release_year(response):
+    """Return the release year for the media."""
+    # tv shows have first_air_date instead of release_date
+    date_str = response.get("release_date") or response.get("first_air_date")
+
+    if date_str:
+        try:
+            return int(date_str[:4])
+        except ValueError:
+            pass
+
+    return None
 
 
 def get_start_date(date):
