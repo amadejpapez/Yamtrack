@@ -658,6 +658,7 @@ def get_related(related_medias, media_type, parent_response=None):
         else:
             data["media_id"] = media["id"]
             data["title"] = get_title(media)
+            data["release_year"] = get_release_year(media)
         related.append(data)
     return related
 
@@ -681,6 +682,7 @@ def get_collection(collection_response):
             "image": get_image_url(media["poster_path"]),
             "media_id": media["id"],
             "title": get_title(media),
+            "release_year": get_release_year(media),
         }
         for media in parts
     ]
