@@ -60,5 +60,5 @@ EXPOSE 8000
 
 CMD ["/entrypoint.sh"]
 
-HEALTHCHECK --interval=45s --timeout=15s --start-period=30s --retries=5 \
-    CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:8000/health/ || exit 1
+# HEALTHCHECK --interval=45s --timeout=15s --start-period=30s --retries=5 \
+#     CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:8000/health/ || exit 1
