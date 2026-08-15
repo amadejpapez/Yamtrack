@@ -1,4 +1,5 @@
 import logging
+import secrets
 import uuid
 
 from django.apps import apps
@@ -223,7 +224,15 @@ class MediaManager(models.Manager):
         """Return list of historical model names."""
         return [f"historical{media_type}" for media_type in MediaTypes.values]
 
-    def get_media_list(self, user, media_type, status_filter, sort_filter, search=None):
+    def get_media_list(
+        self,
+        user,
+        media_type,
+        status_filter,
+        sort_filter,
+        search=None,
+        random_seed=None,
+    ):
         """Get media list based on filters, sorting and search."""
         model = apps.get_model(app_label="app", model_name=media_type)
         queryset = model.objects.filter(user=user.id)
@@ -253,7 +262,12 @@ class MediaManager(models.Manager):
         queryset = self._apply_prefetch_related(queryset, media_type)
 
         if sort_filter:
-            return self._sort_media_list(queryset, sort_filter, media_type)
+            return self._sort_media_list(
+                queryset,
+                sort_filter,
+                media_type,
+                random_seed=random_seed,
+            )
         return queryset
 
     def _apply_prefetch_related(self, queryset, media_type):
@@ -289,14 +303,41 @@ class MediaManager(models.Manager):
 
         return base_queryset
 
-    def _sort_media_list(self, queryset, sort_filter, media_type=None):
+    def _sort_media_list(
+        self,
+        queryset,
+        sort_filter,
+        media_type=None,
+        random_seed=None,
+    ):
         """Sort media list using SQL sorting with annotations for calculated fields."""
+        if sort_filter == users.models.MediaSortChoices.RANDOM:
+            return self._shuffle_media_list(queryset, random_seed)
         if media_type == MediaTypes.TV.value:
             return self._sort_tv_media_list(queryset, sort_filter)
         if media_type == MediaTypes.SEASON.value:
             return self._sort_season_media_list(queryset, sort_filter)
 
         return self._sort_generic_media_list(queryset, sort_filter)
+
+    def _shuffle_media_list(self, queryset, random_seed=None):
+        """Shuffle the media list in a random but reproducible order.
+
+        Hashing each id together with the seed keeps the same shuffle across the
+        paginated requests of one list, while a new seed reshuffles everything.
+        """
+        if random_seed is None:
+            random_seed = secrets.randbits(32)
+
+        return queryset.annotate(
+            shuffle_order=models.functions.MD5(
+                models.functions.Concat(
+                    models.functions.Cast("id", models.CharField()),
+                    models.Value(str(random_seed)),
+                    output_field=models.CharField(),
+                ),
+            ),
+        ).order_by("shuffle_order")
 
     def _sort_tv_media_list(self, queryset, sort_filter):
         """Sort TV media list based on the sort criteria."""

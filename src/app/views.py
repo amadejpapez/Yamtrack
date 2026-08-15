@@ -1,4 +1,5 @@
 import logging
+import secrets
 from pathlib import Path
 from urllib.parse import urlencode
 
@@ -158,6 +159,18 @@ def progress_edit(request, media_type, instance_id):
     )
 
 
+def get_random_seed(request):
+    """Return the seed used by the random sort of the media list.
+
+    The seed is kept in the filter form, so that the pages loaded while
+    scrolling share the same shuffle. A request without one reshuffles the list.
+    """
+    try:
+        return int(request.GET["seed"])
+    except (KeyError, ValueError):
+        return secrets.randbits(32)
+
+
 @login_not_required
 @require_GET
 def media_list(request, username, media_type):
@@ -212,6 +225,8 @@ def media_list(request, username, media_type):
     search_query = request.GET.get("search", "")
     page = request.GET.get("page", 1)
 
+    random_seed = get_random_seed(request)
+
     # Prepare status filter for database query
     if not status_filter:
         status_filter = MediaStatusChoices.ALL
@@ -223,6 +238,7 @@ def media_list(request, username, media_type):
         status_filter=status_filter,
         sort_filter=sort_filter,
         search=search_query,
+        random_seed=random_seed,
     )
 
     # Paginate results
@@ -243,6 +259,7 @@ def media_list(request, username, media_type):
         "layout_class": ".media-grid" if layout == "grid" else "tbody",
         "current_sort": sort_filter,
         "current_status": status_filter,
+        "random_seed": random_seed,
         "sort_choices": MediaSortChoices.choices,
         "status_choices": MediaStatusChoices.choices,
         "target_user": target_user,

@@ -13,19 +13,7 @@
     {{ media_type|media_type_readable_plural }}
   </h1>
 
-  <div x-data="{ sort: '{{ current_sort }}', status: '{{ current_status }}', layout: '{{ current_layout }}', search: '{{ request.GET.search|default:'' }}', statusLabels: {
-    {% for value, label in status_choices %}
-      '{{ value }}': '{{ label }}'
-      {% if not forloop.last %},{% endif %}
-
-    {% endfor %}
-    }, sortLabels: {
-    {% for value, label in sort_choices %}
-      '{{ value }}': '{{ label }}'
-      {% if not forloop.last %},{% endif %}
-
-    {% endfor %}
-    } }">
+  <div x-data="{ sort: '{{ current_sort }}', status: '{{ current_status }}', layout: '{{ current_layout }}', search: '{{ request.GET.search|default:'' }}', seed: '{{ random_seed }}', statusLabels: { {% for value, label in status_choices %} '{{ value }}': '{{ label }}' {% if not forloop.last %},{% endif %}  {% endfor %} }, sortLabels: { {% for value, label in sort_choices %} '{{ value }}': '{{ label }}' {% if not forloop.last %},{% endif %}  {% endfor %} } }">
 
     <!-- Form to manage state -->
     <form id="filter-form" class="hidden">
@@ -33,6 +21,7 @@
       <input type="hidden" name="status" x-model="status">
       <input type="hidden" name="search" x-model="search">
       <input type="hidden" name="layout" x-model="layout">
+      <input type="hidden" name="seed" x-model="seed">
     </form>
 
     <div class="flex flex-col md:flex-row gap-4 mb-6">
@@ -115,7 +104,7 @@
                       hx-indicator="#loading-indicator"
                       class="block w-full px-4 py-2 text-left text-sm transition-colors cursor-pointer"
                       :class="sort === '{{ value }}' ? 'bg-indigo-600 text-white font-medium' : 'text-gray-300 hover:bg-[#454d5a] hover:text-white'"
-                      @click="sort = '{{ value }}'; open = false"
+                      @click="sort = '{{ value }}'; if (sort === 'random') seed = Math.floor(Math.random() * 2 ** 32); open = false"
                       type="button">{{ label }}</button>
             {% endfor %}
           </div>

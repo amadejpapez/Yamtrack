@@ -96,6 +96,33 @@ class MediaListViewTests(TestCase):
         self.assertEqual(self.user.movie_sort, "score")
         self.assertEqual(self.user.movie_layout, "table")
 
+    def test_media_list_random_sort_seed(self):
+        """Test the random sort keeps one shuffle per seed."""
+        url = reverse("medialist", args=[self.user.username, MediaTypes.MOVIE.value])
+
+        response = self.client.get(url + "?sort=random")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["current_sort"], "random")
+
+        seed = response.context["random_seed"]
+        titles = [media.item.title for media in response.context["media_list"]]
+
+        # Requests reusing the seed, like the pages loaded while scrolling,
+        # get the same shuffle back
+        response = self.client.get(url + f"?sort=random&seed={seed}")
+        self.assertEqual(
+            [media.item.title for media in response.context["media_list"]],
+            titles,
+        )
+
+        # An invalid seed falls back to a generated one instead of erroring
+        response = self.client.get(url + "?sort=random&seed=not_a_number")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["media_list"].paginator.count, 5)
+
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.movie_sort, "random")
+
     def test_media_list_htmx_request(self):
         """Test the media list view with HTMX request."""
         response = self.client.get(
