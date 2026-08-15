@@ -23,7 +23,7 @@ from app.models import (
     Status,
 )
 from events.models import Event
-from users.models import HomeSortChoices, MediaStatusChoices
+from users.models import HomeSortChoices, MediaSortChoices, MediaStatusChoices
 
 mock_path = Path(__file__).resolve().parent.parent / "mock_data"
 
@@ -516,6 +516,49 @@ class MediaManagerTests(TestCase):
         )
 
         self.assertEqual(media_list[0], self.movie)
+
+    def test_get_media_list_sort_random(self):
+        """Test that the random sort shuffles while staying stable per seed."""
+        manager = MediaManager()
+
+        for i in range(10):
+            movie_item = Item.objects.create(
+                media_id=f"movie{i}",
+                source=Sources.TMDB.value,
+                media_type=MediaTypes.MOVIE.value,
+                title=f"Movie {i}",
+                image="http://example.com/movie.jpg",
+            )
+            Movie.objects.create(
+                item=movie_item,
+                user=self.user,
+                status=Status.COMPLETED.value,
+                score=i,
+            )
+
+        def shuffled_titles(seed):
+            media_list = manager.get_media_list(
+                user=self.user,
+                media_type=MediaTypes.MOVIE.value,
+                status_filter=MediaStatusChoices.ALL,
+                sort_filter=MediaSortChoices.RANDOM,
+                random_seed=seed,
+            )
+            return [media.item.title for media in media_list]
+
+        titles = shuffled_titles(1)
+
+        # Every movie is listed exactly once, no matter the order
+        alphabetical = sorted(
+            Movie.objects.filter(user=self.user).values_list("item__title", flat=True),
+        )
+        self.assertEqual(sorted(titles), alphabetical)
+
+        # Same seed keeps the order stable, so pagination doesn't repeat items
+        self.assertEqual(titles, shuffled_titles(1))
+
+        # A different seed reshuffles the list
+        self.assertNotEqual(titles, shuffled_titles(2))
 
     def test_get_media_list_sort_by_regular_field(self):
         """Test the get_media_list method with sorting by regular field."""

@@ -43,6 +43,7 @@ class MediaSortChoices(models.TextChoices):
     PROGRESS = "progress", _("Progress")
     START_DATE = "start_date", _("Start Date")
     END_DATE = "end_date", _("End Date")
+    RANDOM = "random", _("Random")
 
 
 class MediaStatusChoices(models.TextChoices):
