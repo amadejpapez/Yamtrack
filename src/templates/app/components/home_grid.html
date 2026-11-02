@@ -6,7 +6,7 @@
   {% component_id 'lists' media.item as lists_component_id %}
   {% component_id 'history' media.item as history_component_id %}
   <div id="home-media-{{ media.item.media_type }}-{{ media.id }}"
-       class="bg-[#2a2f35] rounded-lg overflow-hidden shadow-lg transition-all duration-300"
+       class="flex flex-col bg-[#2a2f35] rounded-lg overflow-hidden shadow-lg transition-all duration-300"
        x-data="{ trackOpen: false, listsOpen: false, historyOpen: false }">
     <div class="relative">
       <a href="{{ media.item|media_url }}">
@@ -72,7 +72,8 @@
     {% if home_status == Status.PLANNING.value %}
       {% if user.progress_bar %}<div class="h-1.25 {{ Status.PLANNING.value|status_background_color }}"></div>{% endif %}
     {% else %}
-      <div id="progress-{{ media.item.media_type }}-{{ media.id }}">
+      <div id="progress-{{ media.item.media_type }}-{{ media.id }}"
+           class="flex grow flex-col">
         {% include "app/components/progress_changer.html" with media=media user=user csrf_token=csrf_token MediaTypes=MediaTypes home_status=home_status only %}
       </div>
     {% endif %}
