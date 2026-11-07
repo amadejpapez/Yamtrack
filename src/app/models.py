@@ -13,8 +13,10 @@ from django.db import models
 from django.db.models import (
     CheckConstraint,
     Count,
+    Exists,
     F,
     Max,
+    OuterRef,
     Prefetch,
     Q,
     UniqueConstraint,
@@ -235,6 +237,8 @@ class MediaManager(models.Manager):
         sort_filter,
         search=None,
         random_seed=None,
+        *,
+        hide_unreleased=False,
     ):
         """Get media list based on filters, sorting and search."""
         model = apps.get_model(app_label="app", model_name=media_type)
@@ -242,6 +246,9 @@ class MediaManager(models.Manager):
 
         if status_filter != users.models.MediaStatusChoices.ALL:
             queryset = queryset.filter(status=status_filter)
+
+        if hide_unreleased:
+            queryset = self._exclude_unreleased(queryset, media_type)
 
         if search:
             search_filter = Q(item__title__icontains=search)
@@ -272,6 +279,29 @@ class MediaManager(models.Manager):
                 random_seed=random_seed,
             )
         return queryset
+
+    def _exclude_unreleased(self, queryset, media_type):
+        """Exclude media that has release events but none released yet."""
+        if media_type == MediaTypes.TV.value:
+            # TV release events are stored on its regular seasons
+            release_events = events.models.Event.objects.filter(
+                item__media_id=OuterRef("item__media_id"),
+                item__source=OuterRef("item__source"),
+                item__media_type=MediaTypes.SEASON.value,
+                item__season_number__gt=0,
+            )
+        else:
+            release_events = events.models.Event.objects.filter(
+                item=OuterRef("item"),
+            )
+
+        # Movies without a release date get the far-past sentinel event
+        released_events = release_events.filter(
+            datetime__gt=events.models.SentinelDatetime.min_datetime(),
+            datetime__lte=timezone.now(),
+        )
+
+        return queryset.exclude(Exists(release_events) & ~Exists(released_events))
 
     def _apply_prefetch_related(self, queryset, media_type):
         """Apply appropriate prefetch_related based on media type."""

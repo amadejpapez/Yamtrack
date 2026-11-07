@@ -1,11 +1,14 @@
+from datetime import timedelta
+
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
-from django.utils import translation
+from django.utils import timezone, translation
 from django.utils.html import escape
 
 from app.models import (
+    TV,
     Item,
     MediaTypes,
     Movie,
@@ -13,6 +16,7 @@ from app.models import (
     Status,
 )
 from app.templatetags import app_tags
+from events.models import Event, SentinelDatetime
 from users.forms import UserUpdateForm
 
 
@@ -161,6 +165,79 @@ class MediaListViewTests(TestCase):
 
         self.user.refresh_from_db()
         self.assertEqual(self.user.movie_sort, "random")
+
+    def test_media_list_hide_unreleased(self):
+        """Test hiding movies whose release events have not happened yet."""
+        now = timezone.now()
+        Event.objects.create(
+            item=Item.objects.get(title="Test Movie 1"),
+            datetime=now + timedelta(days=30),
+        )
+        Event.objects.create(
+            item=Item.objects.get(title="Test Movie 2"),
+            datetime=now - timedelta(days=30),
+        )
+        Event.objects.create(
+            item=Item.objects.get(title="Test Movie 3"),
+            datetime=SentinelDatetime.min_datetime(),
+        )
+        url = reverse("medialist", args=[self.user.username, MediaTypes.MOVIE.value])
+
+        # Hidden by default
+        response = self.client.get(url)
+        self.assertTrue(response.context["hide_unreleased"])
+        titles = {media.item.title for media in response.context["media_list"]}
+        self.assertEqual(titles, {"Test Movie 2", "Test Movie 4", "Test Movie 5"})
+
+        response = self.client.get(url + "?hide_unreleased=false")
+        self.assertFalse(response.context["hide_unreleased"])
+        self.assertEqual(response.context["media_list"].paginator.count, 5)
+
+        # The toggle only applies to the current view
+        response = self.client.get(url)
+        self.assertTrue(response.context["hide_unreleased"])
+
+    def test_tv_list_hide_unreleased(self):
+        """Test hiding TV shows whose regular seasons have not aired yet."""
+        past = timezone.now() - timedelta(days=30)
+        future = timezone.now() + timedelta(days=30)
+        for media_id, title, season_datetimes in (
+            # Aired specials don't count as a release of the show
+            ("1", "Upcoming Show", {0: past, 1: future}),
+            ("2", "Airing Show", {1: past, 2: future}),
+            ("3", "Untracked Show", {}),
+        ):
+            tv_item = Item.objects.create(
+                media_id=media_id,
+                source=Sources.TMDB.value,
+                media_type=MediaTypes.TV.value,
+                title=title,
+            )
+            TV.objects.create(
+                item=tv_item,
+                user=self.user,
+                status=Status.PLANNING.value,
+            )
+            for season_number, release_datetime in season_datetimes.items():
+                season_item = Item.objects.create(
+                    media_id=media_id,
+                    source=Sources.TMDB.value,
+                    media_type=MediaTypes.SEASON.value,
+                    title=title,
+                    season_number=season_number,
+                )
+                Event.objects.create(
+                    item=season_item,
+                    content_number=1,
+                    datetime=release_datetime,
+                )
+
+        response = self.client.get(
+            reverse("medialist", args=[self.user.username, MediaTypes.TV.value]),
+        )
+
+        titles = {media.item.title for media in response.context["media_list"]}
+        self.assertEqual(titles, {"Airing Show", "Untracked Show"})
 
     def test_media_list_htmx_request(self):
         """Test the media list view with HTMX request."""

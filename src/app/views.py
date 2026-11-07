@@ -226,6 +226,13 @@ def media_list(request, username, media_type):
 
     search_query = request.GET.get("search", "")
     page = request.GET.get("page", 1)
+    supports_hide_unreleased = media_type in (
+        MediaTypes.TV.value,
+        MediaTypes.MOVIE.value,
+    )
+    hide_unreleased = (
+        supports_hide_unreleased and request.GET.get("hide_unreleased") != "false"
+    )
 
     random_seed = get_random_seed(request)
 
@@ -241,6 +248,7 @@ def media_list(request, username, media_type):
         sort_filter=sort_filter,
         search=search_query,
         random_seed=random_seed,
+        hide_unreleased=hide_unreleased,
     )
 
     # Paginate results
@@ -261,6 +269,8 @@ def media_list(request, username, media_type):
         "layout_class": ".media-grid" if layout == "grid" else "tbody",
         "current_sort": sort_filter,
         "current_status": status_filter,
+        "supports_hide_unreleased": supports_hide_unreleased,
+        "hide_unreleased": hide_unreleased,
         "random_seed": random_seed,
         "sort_choices": MediaSortChoices.choices,
         "status_choices": MediaStatusChoices.choices,

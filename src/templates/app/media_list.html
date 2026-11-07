@@ -14,7 +14,7 @@
     {{ media_type|media_type_readable_plural }}
   </h1>
 
-  <div x-data="{ sort: '{{ current_sort }}', status: '{{ current_status }}', layout: '{{ current_layout }}', search: '{{ request.GET.search|default:'' }}', seed: '{{ random_seed }}', statusLabels: { {% for value, label in status_choices %} '{{ value }}': '{{ label }}' {% if not forloop.last %},{% endif %}  {% endfor %} }, sortLabels: { {% for value, label in sort_choices %} '{{ value }}': '{{ label }}' {% if not forloop.last %},{% endif %}  {% endfor %} } }">
+  <div x-data="{ sort: '{{ current_sort }}', status: '{{ current_status }}', layout: '{{ current_layout }}', search: '{{ request.GET.search|default:'' }}', seed: '{{ random_seed }}', hideUnreleased: {{ hide_unreleased|yesno:'true,false' }}, statusLabels: { {% for value, label in status_choices %} '{{ value }}': '{{ label }}' {% if not forloop.last %},{% endif %}  {% endfor %} }, sortLabels: { {% for value, label in sort_choices %} '{{ value }}': '{{ label }}' {% if not forloop.last %},{% endif %}  {% endfor %} } }">
 
     <!-- Form to manage state -->
     <form id="filter-form" class="hidden">
@@ -23,6 +23,7 @@
       <input type="hidden" name="search" x-model="search">
       <input type="hidden" name="layout" x-model="layout">
       <input type="hidden" name="seed" x-model="seed">
+      {% if supports_hide_unreleased %}<input type="hidden" name="hide_unreleased" :value="hideUnreleased">{% endif %}
     </form>
 
     <div class="flex flex-col md:flex-row gap-4 mb-6">
@@ -37,6 +38,21 @@
       </div>
 
       <div class="flex gap-2 flex-wrap">
+        {% if supports_hide_unreleased %}
+          <!-- Hide unreleased -->
+          <button hx-get="{% url 'medialist' target_user.username media_type %}"
+                  {% if media_list %} hx-target="{{ layout_class }}" {% else %} hx-target="#empty_list" {% endif %}
+                  hx-include="#filter-form"
+                  hx-indicator="#loading-indicator"
+                  class="flex items-center gap-2 px-4 py-2 rounded-md border transition-colors cursor-pointer"
+                  :class="hideUnreleased ? 'border-indigo-500 bg-indigo-600 text-white hover:bg-indigo-700' : 'border-gray-700 bg-[#39404b] text-gray-300 hover:bg-[#454d5a] hover:text-white'"
+                  @click="hideUnreleased = !hideUnreleased"
+                  type="button">
+            {% include "app/icons/eye-closed.svg" with classes="w-4 h-4" %}
+            <span>{% trans "Hide unreleased" %}</span>
+          </button>
+        {% endif %}
+
         <!-- Filter by Status -->
         <div class="relative" x-data="{ open: false }">
           <button class="flex items-center px-4 py-2 bg-[#39404b] rounded-md hover:bg-[#454d5a] transition-colors cursor-pointer"
