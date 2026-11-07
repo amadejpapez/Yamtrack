@@ -305,7 +305,9 @@
         <h2 class="text-xl font-bold mb-4">{% trans "Actions" %}</h2>
         <div class="bg-[#2a2f35] rounded-lg overflow-hidden divide-y divide-white/5 mb-6">
           {# Custom Lists #}
-          <div x-data="{ listsOpen: false }">
+          {% blocktrans count count=lists_count asvar lists_label %}In {{ count }} list{% plural %}In {{ count }} lists{% endblocktrans %}
+          <div x-data="{ listsOpen: false, listsCount: {{ lists_count }}, listsLabel: '{{ lists_label|escapejs }}' }"
+               @list-item-toggled="listsCount = $event.detail.count; listsLabel = $event.detail.label">
             <button class="w-full flex items-center gap-x-3 px-4 py-3 text-sm text-gray-200 hover:bg-[#343a40] transition-colors duration-200 cursor-pointer"
                     title="{% trans 'Add to custom lists' %}"
                     hx-get="{% media_view_url 'lists_modal' media %}"
@@ -317,6 +319,10 @@
                 {% include "app/icons/list-add.svg" with classes="w-4 h-4" %}
               </span>
               <span class="font-medium">{% trans "Add to lists" %}</span>
+              <span x-cloak
+                    x-show="listsCount > 0"
+                    x-text="listsLabel"
+                    class="ml-auto shrink-0 whitespace-nowrap px-2 py-1 rounded text-xs font-medium text-emerald-400 bg-emerald-400/10"></span>
             </button>
 
             <div x-show="listsOpen"

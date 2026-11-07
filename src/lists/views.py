@@ -1,3 +1,4 @@
+import json
 import logging
 
 from django.contrib import messages
@@ -6,6 +7,7 @@ from django.db.models import Count, F, OuterRef, Q, Subquery
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.translation import gettext as _
+from django.utils.translation import ngettext
 from django.views.decorators.http import require_GET, require_POST
 
 from app import helpers
@@ -317,8 +319,27 @@ def list_item_toggle(request):
         logger.info("%s added to %s.", item, custom_list)
         has_item = True
 
-    return render(
+    response = render(
         request,
         "lists/components/list_item_button.html",
         {"custom_list": custom_list, "item": item, "has_item": has_item},
     )
+    # Lets the lists button on the details page keep its label in sync
+    lists_count = CustomList.objects.count_user_lists_with_item(
+        request.user,
+        id=item.id,
+    )
+    response["HX-Trigger"] = json.dumps(
+        {
+            "list-item-toggled": {
+                "count": lists_count,
+                "label": ngettext(
+                    "In %(count)s list",
+                    "In %(count)s lists",
+                    lists_count,
+                )
+                % {"count": lists_count},
+            },
+        },
+    )
+    return response

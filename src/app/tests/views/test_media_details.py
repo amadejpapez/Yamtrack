@@ -13,6 +13,7 @@ from app.models import (
     Sources,
     Status,
 )
+from lists.models import CustomList
 
 
 class MediaDetailsViewTests(TestCase):
@@ -60,6 +61,44 @@ class MediaDetailsViewTests(TestCase):
             "238",
             Sources.TMDB.value,
         )
+
+    @patch("app.providers.services.get_media_metadata")
+    def test_media_details_lists_count(self, mock_get_metadata):
+        """Test the details page counts the user's lists containing the item."""
+        mock_get_metadata.return_value = {
+            "media_id": "238",
+            "title": "Test Movie",
+            "media_type": MediaTypes.MOVIE.value,
+            "source": Sources.TMDB.value,
+            "image": "http://example.com/image.jpg",
+        }
+        item = Item.objects.create(
+            media_id="238",
+            source=Sources.TMDB.value,
+            media_type=MediaTypes.MOVIE.value,
+            title="Test Movie",
+        )
+        other_user = get_user_model().objects.create_user(username="other")
+        CustomList.objects.create(name="Own", owner=self.user).items.add(item)
+        shared_list = CustomList.objects.create(name="Shared", owner=other_user)
+        shared_list.collaborators.add(self.user)
+        shared_list.items.add(item)
+        CustomList.objects.create(name="Not Shared", owner=other_user).items.add(item)
+        CustomList.objects.create(name="Empty", owner=self.user)
+        url = reverse(
+            "media_details",
+            kwargs={
+                "source": Sources.TMDB.value,
+                "media_type": MediaTypes.MOVIE.value,
+                "media_id": "238",
+                "title": "test-movie",
+            },
+        )
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.context["lists_count"], 2)
+        self.assertContains(response, "In 2 lists")
 
     def test_anilist_media_details_view(self):
         """Test the media details view for an anime from AniList."""

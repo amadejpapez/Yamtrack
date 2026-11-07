@@ -27,6 +27,15 @@ class CustomListManager(models.Manager):
             .distinct()
         )
 
+    def count_user_lists_with_item(self, user, **item_fields):
+        """Return how many lists the user can edit contain the matching item."""
+        item_filter = {f"items__{field}": value for field, value in item_fields.items()}
+        return (
+            self.filter(Q(owner=user) | Q(collaborators=user), **item_filter)
+            .distinct()
+            .count()
+        )
+
     def get_user_lists_with_item(self, user, item):
         """Return user lists with item membership status."""
         return (

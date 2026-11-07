@@ -36,6 +36,7 @@ from app.models import (
 from app.providers import manual, services, tmdb
 from app.templatetags import app_tags
 from events.models import Event
+from lists.models import CustomList
 from users.models import (
     DateFormatChoices,
     HomeSortChoices,
@@ -382,6 +383,12 @@ def media_details(request, source, media_type, media_id, title):  # noqa: ARG001
         "media_type": media_type,
         "user_medias": user_medias,
         "current_instance": current_instance,
+        "lists_count": CustomList.objects.count_user_lists_with_item(
+            request.user,
+            media_id=media_id,
+            source=source,
+            media_type=media_type,
+        ),
         "watch_providers": watch_providers,
         "watch_provider_region": request.user.watch_provider_region,
     }
@@ -444,6 +451,13 @@ def season_details(request, source, media_id, title, season_number):  # noqa: AR
         "media_type": MediaTypes.SEASON.value,
         "user_medias": user_medias,
         "current_instance": current_instance,
+        "lists_count": CustomList.objects.count_user_lists_with_item(
+            request.user,
+            media_id=media_id,
+            source=source,
+            media_type=MediaTypes.SEASON.value,
+            season_number=season_number,
+        ),
         "watch_providers": tmdb.filter_providers(
             season_metadata.get("providers"), request.user.watch_provider_region
         ),

@@ -1,3 +1,4 @@
+import json
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
@@ -896,6 +897,10 @@ class ListItemToggleTests(TestCase):
         self.assertEqual(response.context["custom_list"], self.list)
         self.assertEqual(response.context["item"], self.item)
         self.assertTrue(response.context["has_item"])  # Item was added
+        self.assertEqual(
+            json.loads(response["HX-Trigger"]),
+            {"list-item-toggled": {"count": 1, "label": "In 1 list"}},
+        )
 
         # Toggle again to remove
         response = self.client.post(
@@ -907,3 +912,7 @@ class ListItemToggleTests(TestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertFalse(response.context["has_item"])  # Item was removed
+        self.assertEqual(
+            json.loads(response["HX-Trigger"]),
+            {"list-item-toggled": {"count": 0, "label": "In 0 lists"}},
+        )
